@@ -1,2 +1,10 @@
-# new-filter-appsa
-new filter app fore stores in Mosul
+# بناء ملف APK (بدون برامج، من المتصفح فقط)
+
+1. أنشئ حساباً مجانياً في github.com ثم اضغط New repository وسمّه أي اسم.
+2. اضغط "uploading an existing file" وارفع **كل محتويات هذا المجلد** (بما فيها المجلد المخفي `.github`).
+   - على ماك: اضغط Cmd+Shift+. لإظهار المجلدات المخفية.
+   - إن لم يظهر `.github` بعد الرفع: Add file ← Create new file، اكتب الاسم `.github/workflows/build.yml` والصق محتوى الملف.
+3. افتح تبويب **Actions**، انتظر 4–6 دقائق حتى تظهر علامة ✓ خضراء.
+4. افتح آخر عملية تشغيل ← في الأسفل **Artifacts** ← حمّل `matajer-apk` ← فك الضغط لتحصل على `app-debug.apk` وثبّته على هاتفك.
+
+للتجربة قبل البناء: افتح `www/index.html` في المتصفح مباشرة.

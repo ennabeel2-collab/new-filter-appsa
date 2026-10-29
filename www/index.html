@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>متاجر الخصومات</title>
+<link rel="stylesheet" href="lib/leaflet.css">
+<style>
+@font-face{font-family:Cairo;src:url(lib/cairo-arabic-wght-normal.woff2) format("woff2");font-weight:200 1000;unicode-range:U+0600-06FF,U+FB50-FEFF}
+@font-face{font-family:Cairo;src:url(lib/cairo-latin-wght-normal.woff2) format("woff2");font-weight:200 1000;unicode-range:U+0000-00FF,U+2000-206F}
+@font-face{font-family:Lalezar;src:url(lib/lalezar-arabic-400-normal.woff2) format("woff2")}
+:root{--ink:#1b1a3a;--lem:#ffd23f;--bg:#eaf3ef;--ok:#0e7c66;--t:#1c2230}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{font:16px/1.6 Cairo,sans-serif;background:var(--bg);color:var(--t);display:flex;flex-direction:column;overflow:hidden}
+header{background:var(--ink);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 14px 12px}
+h1{font:400 30px/1.2 Lalezar,Cairo;color:var(--lem)}
+#cnt{font-size:13px;opacity:.75;margin-bottom:8px}
+#bar{display:flex;gap:8px}
+header.add #bar{display:none}
+input,select{font:inherit;border:0;border-radius:12px;padding:9px 12px;background:#fff;color:var(--t)}
+#q{flex:1;min-width:0}
+select{max-width:42%}
+main{flex:1;overflow:auto;position:relative}
+#t-list{padding:12px;display:grid;gap:12px;align-content:start}
+#t-map,#map{height:100%;font-family:Cairo}
+.leaflet-popup-content{direction:rtl;text-align:right;line-height:1.6}
+.c{background:#fff;border-radius:16px;display:flex;overflow:hidden}
+.d{position:relative;background:var(--lem);width:86px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ink);font-family:Lalezar,Cairo}
+.d b{font-size:38px;line-height:1;font-weight:400}
+.d i{font-style:normal;font-size:14px}
+.d::before,.d::after{content:"";position:absolute;left:-9px;width:18px;height:18px;border-radius:50%;background:var(--bg)}
+.d::before{top:-9px}.d::after{bottom:-9px}
+.i{flex:1;min-width:0;padding:12px 16px}
+h3{font:400 21px/1.3 Lalezar,Cairo;color:var(--ink)}
+.ar{font-size:13px;font-weight:600;background:#dff0ea;color:var(--ok);border-radius:99px;padding:1px 10px;display:inline-block}
+.i p{color:#5b6475;font-size:14px;margin:6px 0 0}
+.b{display:flex;gap:8px;margin-top:10px}
+.b button,.b a{flex:1;text-align:center;font:700 14px Cairo;border:0;border-radius:10px;padding:7px;background:var(--ok);color:#fff;text-decoration:none}
+.b a{background:#dff0ea;color:var(--ok)}
+nav{display:flex;background:#fff;border-top:1px solid #d5e0db;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:0;padding:6px 0;font:700 13px Cairo;color:#8a94a6;display:flex;flex-direction:column;align-items:center}
+nav button span{font-size:22px;line-height:1.3}
+nav .on{color:var(--ok)}
+.pin{background:var(--lem);color:var(--ink);font:400 17px/28px Lalezar,Cairo;border-radius:14px 14px 14px 2px;text-align:center;border:2px solid var(--ink)}
+#t-add{padding:14px}
+.box{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px}
+.box h2{font:400 22px Lalezar,Cairo;color:var(--ink);margin-bottom:4px}
+.up{display:block;background:var(--ok);color:#fff;text-align:center;padding:14px;border-radius:14px;font-weight:700;font-size:18px;margin:12px 0}
+#f{display:none}
+.chips span{display:inline-block;background:#dff0ea;color:var(--ok);font-weight:600;border-radius:99px;padding:1px 12px;margin:3px;font-size:14px}
+#msg{font-weight:700;color:var(--ok)}
+.link{border:0;background:0;font:700 14px Cairo;color:var(--ok);margin-top:8px}
+.link.red{color:#c62828}
+.empty{text-align:center;color:#5b6475;padding:48px 20px}
+.empty .link{font-size:16px}
+</style>
+</head>
+<body>
+<header>
+  <h1>متاجر الخصومات</h1>
+  <div id="cnt"></div>
+  <div id="bar"><input id="q" type="search" placeholder="ابحث باسم المتجر أو الحي"><select id="ar"></select></div>
+</header>
+<main>
+  <section id="t-list"></section>
+  <section id="t-map" hidden><div id="map"></div></section>
+  <section id="t-add" hidden>
+    <div class="box">
+      <h2>إضافة متاجر من ملف إكسل</h2>
+      <p>جهّز ملف Excel بالأعمدة التالية في الصف الأول:</p>
+      <div class="chips"><span>اسم المتجر</span><span>الحي</span><span>الموقع</span><span>نسبة الخصم</span><span>نبذة</span></div>
+      <p style="font-size:14px;color:#5b6475;margin-top:6px">عمود «الموقع» يقبل إحداثيات GPS مثل <b dir="ltr">33.3152,44.3661</b> أو رابط خرائط Google. ويمكن بدلاً منه استخدام عمودين: «خط العرض» و«خط الطول». المتجر الموجود مسبقاً بنفس الاسم والحي يتم تحديثه.</p>
+      <label class="up" for="f">📂 اختيار ملف إكسل</label>
+      <input id="f" type="file" accept=".xlsx,.xls,.csv">
+      <div id="msg"></div>
+    </div>
+    <div class="box"><button class="link red" id="clr">🗑️ حذف كل المتاجر</button></div>
+  </section>
+</main>
+<nav>
+  <button data-t="list" class="on"><span>🏪</span>المتاجر</button>
+  <button data-t="map"><span>🗺️</span>الخريطة</button>
+  <button data-t="add"><span>📥</span>إضافة متاجر</button>
+</nav>
+<script src="lib/leaflet.js"></script>
+<script src="lib/xlsx.js"></script>
+<script>
+const $=s=>document.querySelector(s),K='stores_v1';
+let S=[],tab='list',map,layer,mk={};
+try{S=JSON.parse(localStorage.getItem(K))||[]}catch(e){}
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nz=s=>String(s??'').toLowerCase().replace(/[\u064B-\u065F\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/\s+/g,' ').trim();
+const en=s=>String(s??'').replace(/[٠-٩]/g,d=>d.charCodeAt(0)-1632).replace(/[۰-۹]/g,d=>d.charCodeAt(0)-1776).replace(/٫/g,'.').replace(/[،؛]/g,',');
+const gm=s=>`https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lng}`;
+
+function list(){
+  const q=nz($('#q').value),a=$('#ar').value;
+  return S.filter(s=>(!a||s.area===a)&&(!q||nz(s.name).includes(q)||nz(s.area).includes(q))).sort((x,y)=>y.disc-x.disc);
+}
+function fill(){
+  const cur=$('#ar').value,A=[...new Set(S.map(s=>s.area).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
+  $('#ar').innerHTML='<option value="">كل الأحياء</option>'+A.map(a=>`<option ${a===cur?'selected':''}>${esc(a)}</option>`).join('');
+}
+const card=s=>`<article class="c"><div class="d"><b>${s.disc}%</b><i>خصم</i></div><div class="i"><h3>${esc(s.name)}</h3>${s.area?`<span class="ar">📍 ${esc(s.area)}</span>`:''}${s.about?`<p>${esc(s.about)}</p>`:''}${s.lat!=null?`<div class="b"><button onclick="show(${s.id})">🗺️ على الخريطة</button><a target="_blank" href="${gm(s)}">🧭 اتجاهات</a></div>`:''}</div></article>`;
+function render(){
+  const F=list();
+  $('#cnt').textContent=F.length===S.length?`${S.length} متجر`:`${F.length} من ${S.length} متجر`;
+  $('#t-list').innerHTML=F.length?F.map(card).join(''):S.length?'<div class="empty">لا توجد نتائج مطابقة للبحث</div>':'<div class="empty">لا توجد متاجر بعد.<br>أضف متاجرك من ملف إكسل في تبويب «إضافة متاجر».<br><button class="link" onclick="demo()">أو جرّب بيانات تجريبية</button></div>';
+  if(tab==='map')marks(F);
+}
+function initMap(){
+  if(map)return;
+  map=L.map('map',{zoomControl:false}).setView([33.3,44.4],6);
+  L.control.zoom({position:'bottomleft'}).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  layer=L.layerGroup().addTo(map);
+}
+function marks(F){
+  layer.clearLayers();mk={};const P=[];
+  F.forEach(s=>{
+    if(s.lat==null)return;
+    mk[s.id]=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',html:`<div class="pin">${s.disc}%</div>`,iconSize:[46,32],iconAnchor:[23,32],popupAnchor:[0,-32]})})
+      .bindPopup(`<b>${esc(s.name)}</b><br>${esc(s.area)} — خصم ${s.disc}%<br><a target="_blank" href="${gm(s)}">🧭 اتجاهات</a>`).addTo(layer);
+    P.push([s.lat,s.lng]);
+  });
+  if(P.length)map.fitBounds(P,{padding:[40,40],maxZoom:16});
+}
+function go(t,after){
+  tab=t;
+  ['list','map','add'].forEach(x=>$('#t-'+x).hidden=x!==t);
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  $('header').classList.toggle('add',t==='add');
+  if(t==='map'){initMap();setTimeout(()=>{map.invalidateSize();marks(list());after&&after()},60)}
+}
+function show(id){
+  const s=S.find(x=>x.id===id);
+  go('map',()=>{map.setView([s.lat,s.lng],17);mk[id]&&mk[id].openPopup()});
+}
+
+/* ---- استيراد إكسل ---- */
+const H={name:['اسم المتجر','المتجر','الاسم','name','store'],area:['الحي','المنطقة','district','area','neighborhood'],lat:['خط العرض','lat','latitude'],lng:['خط الطول','lng','lon','long','longitude'],gps:['الموقع','الموقع gps','gps','الاحداثيات','رابط الموقع','location'],disc:['نسبة الخصم','الخصم','discount'],about:['نبذة','نبذة عن المتجر','الوصف','description','about']};
+const get=(r,k)=>{for(const h in r)if(H[k].some(a=>nz(a)===nz(h)))return r[h];return ''};
+function pos(r){
+  let la=parseFloat(en(get(r,'lat'))),ln=parseFloat(en(get(r,'lng')));
+  if(isNaN(la)||isNaN(ln)){
+    const m=en(get(r,'gps')).match(/(-?\d{1,3}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}\.\d+)/);
+    la=m?parseFloat(m[1]):NaN;ln=m?parseFloat(m[2]):NaN;
+  }
+  return(Math.abs(la)<=90&&Math.abs(ln)<=180)?[la,ln]:[null,null];
+}
+$('#f').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+    const R=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+    let add=0,upd=0,noPos=0,skip=0;
+    R.forEach((r,i)=>{
+      const name=String(get(r,'name')).trim();
+      if(!name){skip++;return}
+      const d=get(r,'disc');let n=typeof d==='number'?d:parseFloat(en(d));
+      if(isNaN(n))n=0;if(typeof d==='number'&&n>0&&n<=1)n*=100;
+      const [lat,lng]=pos(r);if(lat==null)noPos++;
+      const o={name,area:String(get(r,'area')).trim(),disc:Math.round(n),about:String(get(r,'about')).trim(),lat,lng};
+      const j=S.findIndex(s=>nz(s.name)===nz(o.name)&&nz(s.area)===nz(o.area));
+      if(j>=0){S[j]={...S[j],...o};upd++}else{S.push({id:Date.now()+i,...o});add++}
+    });
+    save();fill();render();
+    $('#msg').textContent=`✅ تمت إضافة ${add} متجر وتحديث ${upd}`+(noPos?` — ${noPos} بدون موقع صالح`:'')+(skip?` — تم تجاهل ${skip} صف بلا اسم`:'');
+  }catch(x){$('#msg').textContent='❌ تعذّر قراءة الملف. تأكد أنه ملف Excel صحيح.'}
+  e.target.value='';
+};
+$('#clr').onclick=()=>{if(confirm('حذف كل المتاجر نهائياً؟')){S=[];save();fill();render();$('#msg').textContent=''}};
+function demo(){
+  S=[['متجر النور للإلكترونيات','الكرادة',33.3128,44.4296,25,'أجهزة كهربائية وإكسسوارات بأسعار مخفضة.'],['مخبز السنابل','المنصور',33.3236,44.3487,10,'معجنات طازجة كل صباح.'],['عطور الياسمين','الكرادة',33.3077,44.4213,30,'عطور شرقية وغربية أصلية.']]
+    .map((a,i)=>({id:i+1,name:a[0],area:a[1],lat:a[2],lng:a[3],disc:a[4],about:a[5]}));
+  save();fill();render();
+}
+$('#q').oninput=render;$('#ar').onchange=render;
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>go(b.dataset.t));
+fill();render();
+</script>
+</body>
+</html>
